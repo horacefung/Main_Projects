@@ -1,7 +1,16 @@
 ##---Data Extract Class----#
+"""
+Title:       Data extract pipelie to create training and test sets for model.
+             Professional match data from Oracle's Elixir and champions data from RiotGames
 
-# 1. Pull champion data from Riot Games & competitive esports data from Oracle's Elixir website
-# 2. Create raw data input
+Description: Pull data for every champion, every relevant patch from data sources.
+             Parse stats and abilities (by keywords) from champion descriptions.
+             Create running averages of player and team recent performance.
+             Create head to head deltas in relevant fields between blue and red side teams.
+             Save training & test datasets.
+
+Author:      Horace Fung, July 2020
+"""
 
 #import packages
 import pandas as pd
@@ -15,11 +24,14 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.model_selection import train_test_split
 import numpy as np
 import pdb
+import os
+from basic_methods import BasicMethods #Inherit basic methods
 
 import warnings
 warnings.filterwarnings('ignore')
 
-class DataExtract:
+
+class DataExtract(BasicMethods):
 
     __slots__ = ['x_train', 'x_test']
 
@@ -282,47 +294,33 @@ class DataExtract:
         target = target[(target['side'] == 'Blue')].drop('side', axis = 1).drop_duplicates()
         target = target.set_index('gameid')
         final = pd.merge(h_t_h_complete, target, how = 'left', left_index = True, right_index = True)
-
-        x = final[final.columns[~final.columns.isin(['result'])]]
-        y = final['result']
-
-        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 0)
-
-        self.x_train = x_train
-        self.x_test = x_test
-        self.y_train = y_train
-        self.y_test = y_test
-        self.full_output = final
+        self.final = final
 
 
-    @staticmethod
-    def save_pickle(variable, path):
-
-        output_file = open(path,'wb')
-        pickle.dump(x_train, output_file)
-        output.close()
-
-    @staticmethod
-    def read_pickle(path):
-
-        input_file = open(path,'rb')
-        variable = pickle.load(input_file)
-        input_file.close()
-        return(variable)
-
-
+#if main, parameters
 DATA_DIR = '../data/'
 MODEL_DIR = '../models/'
+MATCH_FILE = '2020_LoL_esports_match_data_from_OraclesElixir_20200722.csv'
+XTRAIN_FILE = 'x_train.pkl'
+YTRAIN_FILE = 'y_train.pkl'
+XTEST_FILE ='x_test.pkl'
+YTEST_FILE ='y_test.pkl'
+FULL_FILE ='full_output.pkl'
 PATCH_END = 10.1
-TRAIN_FILE = 
-TEST_FILE =
 WINDOW = 5
 
 #If we run this directly through terminal or shell
 if __name__ == "__main__":
 
-    champions_list =
-    patches_list = 
+    cwd = os.getcwd() #Check working directory if needed
+
+    match_dataset = pd.read(DATA_DIR + MATCH_FILE)
+    #patches = match_dataset[match_dataset['patch'] <= PATCH_END]
+
+    #----Read competitve history data set for list of patches ----#
+
+    patches = list(set(patches['patch']))
+    patches = [str(x) for x in patches]
 
     data_extract_pipeline = DataExtract()
 
@@ -333,8 +331,24 @@ if __name__ == "__main__":
     data_extract_pipeline.head_to_head_teams()
     data_extract_pipeline.create_output()
 
-    #Save output
+    full_output = getattr(data_extract_pipeline, 'final')
+    match_index = match_dataset[['game_id', 'patch', 'date']]
+    full_output = pd.merge(full_output, match_index, how = 'left', left_on = ['game_id'],
+                            right_on = ['gameid'])
 
+    filtered_output = full_output[full_output['patch'] <= PATCH_END]
+
+    x = filtered_output[filtered_output.columns[~filtered_output.columns.isin(['result'])]]
+    y = filtered_output['result']
+
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 0)
+
+    #Save output
+    data_extract_pipeline.save_pickle(x_train, DATA_DIR + XTRAIN_FILE)
+    data_extract_pipeline.save_pickle(y_train, DATA_DIR + YTRAIN_FILE)
+    data_extract_pipeline.save_pickle(x_test, DATA_DIR + XTEST_FILE)
+    data_extract_pipeline.save_pickle(y_test, DATA_DIR + YTEST_FILE)
+    data_extract_pipeline.save_pickle(full_output, DATA_DIR + FULL_FILE)
 
 
 
