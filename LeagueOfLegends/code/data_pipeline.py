@@ -1,6 +1,7 @@
-##---Data Extract Class----#
+##---Data Pipeline Class----#
 """
-Title:       Data extract pipelie to create training and test sets for model.
+Title:       Data extract pipeline to create training and test sets for model.
+             Will create the dataset for any set of competitive matches given.
              Professional match data from Oracle's Elixir and champions data from RiotGames
 
 Description: Pull data for every champion, every relevant patch from data sources.
@@ -25,15 +26,17 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import pdb
 import os
+import logging
 from basic_methods import BasicMethods #Inherit basic methods
 
 import warnings
 warnings.filterwarnings('ignore')
 
 
-class DataExtract(BasicMethods):
+class DataPipeline(BasicMethods):
 
-    __slots__ = ['x_train', 'x_test']
+    __slots__ = ['matches_df','champion_output', 'player_profiles', 'team_profiles',
+                    'h_t_h_players', 'h_t_h_teams', 'z']
 
     def __int__(self, matches_df):
         self.matches_df = matches_df
@@ -123,7 +126,15 @@ class DataExtract(BasicMethods):
         return(output_df)
 
     #--- Pull data from Riot Games website and use extract_champions_data function-----#
-    def data_pull(self, champions_list, patches, url):
+    def data_pull(self, url):
+
+        matches_df = self.matches_df
+        patches = list(set(matches_df['patch']))
+        patches = [str(x) for x in patches]
+
+        url = 'http://ddragon.leagueoflegends.com/cdn/' + patches[-1] + '/data/en_US/champion.json'
+        champion_list = requests.get(url).json()
+        champion_list = list(champion_list['data'].keys())
 
         champion_output = pd.DataFrame()
         loops = len(patches)
@@ -297,34 +308,32 @@ class DataExtract(BasicMethods):
         self.final = final
 
 
-#if main, parameters
-DATA_DIR = '../data/'
-MODEL_DIR = '../models/'
-MATCH_FILE = '2020_LoL_esports_match_data_from_OraclesElixir_20200722.csv'
-XTRAIN_FILE = 'x_train.pkl'
-YTRAIN_FILE = 'y_train.pkl'
-XTEST_FILE ='x_test.pkl'
-YTEST_FILE ='y_test.pkl'
-FULL_FILE ='full_output.pkl'
-PATCH_END = 10.1
-WINDOW = 5
 
 #If we run this directly through terminal or shell
 if __name__ == "__main__":
 
-    cwd = os.getcwd() #Check working directory if needed
+    #if main, parameters
+    DATA_DIR = '../data/'
+    MODEL_DIR = '../models/'
+    MATCH_FILE = '2020_LoL_esports_match_data_from_OraclesElixir_20200722.csv'
+    XTRAIN_FILE = 'x_train.pkl'
+    YTRAIN_FILE = 'y_train.pkl'
+    XTEST_FILE ='x_test.pkl'
+    YTEST_FILE ='y_test.pkl'
+    FULL_FILE ='full_output.pkl'
+    PATCH_END = 10.1
+    WINDOW = 5
+    URL = 'http://ddragon.leagueoflegends.com/cdn/{}/data/en_US/champion/{}.json'
 
-    match_dataset = pd.read(DATA_DIR + MATCH_FILE)
-    #patches = match_dataset[match_dataset['patch'] <= PATCH_END]
+    #cwd = os.getcwd() #Check working directory if needed
+
+    match_dataset = pd.read_csv(DATA_DIR + MATCH_FILE)
 
     #----Read competitve history data set for list of patches ----#
 
-    patches = list(set(patches['patch']))
-    patches = [str(x) for x in patches]
+    data_extract_pipeline = DataExtract(match_dataset) #initialize with the competitive matches
 
-    data_extract_pipeline = DataExtract()
-
-    data_extract_pipeline.data_pull(self, champions_list, patches, url)
+    data_extract_pipeline.data_pull(self, URL)
     data_extract_pipeline.create_player_profiles(window = WINDOW)
     data_extract_pipeline.create_team_profiles(window = WINDOW)
     data_extract_pipeline.head_to_head_players()
