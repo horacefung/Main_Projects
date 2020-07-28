@@ -1,42 +1,39 @@
-##---Basic Methods Class----#
+# ---Basic Methods Class----#
 """
 Title:       Basic methods that are frequently used across classes
 
 Description: A class to store methods like pickling files, reading from pickle,
-			 reusing certain data cleaning methods etc.
+            reusing certain data cleaning methods etc.
 
 Author:      Horace Fung, July 2020
 """
 
-#import packages
-import pandas as pd
-import json
+# import packages
 import pickle
-import numpy as np
-import pdb
-import os
 
 import warnings
 warnings.filterwarnings('ignore')
 
 
-class BasicMethods():
+class BasicMethods:
+    def __init__(self):
+        return None
 
-
-    def __int__(self):
-        return(None)
-
-     @staticmethod
+    @staticmethod
     def save_pickle(variable, path):
 
-        output_file = open(path,'wb')
-        pickle.dump(x_train, output_file)
-        output.close()
+        output_file = open(path, 'wb')
+        pickle.dump(variable, output_file)
+        output_file.close()
 
     @staticmethod
     def read_pickle(path):
 
-        input_file = open(path,'rb')
+        input_file = open(path, 'rb')
         variable = pickle.load(input_file)
         input_file.close()
-        return(variable)
+        return variable
+
+
+if __name__ == "__main__":
+    None

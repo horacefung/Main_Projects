@@ -115,7 +115,7 @@ if __name__ == "__main__":
        'delta_Mage', 'delta_Marksman', 'delta_Support', 'delta_Tank',
        'average_gamelength']
 
-    pca_components = 30
+    pca_components = 30 #magic numbers
 
     log_c = 0.6
 
