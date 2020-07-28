@@ -15,16 +15,12 @@ Author:      Horace Fung, July 2020
 
 import sys
 
-sys.path.append('/Users/horacefung/Documents/GitHub/New_Projects/LeagueOfLegends/code/')
+sys.path.append('/Users/horacefung/Documents/GitHub/New_Projects/LeagueOfLegends/module/')
 
 # import packages
-from pathlib import Path
 import pandas as pd
 import requests
-# import json
-# import pickle
 from nltk.stem import PorterStemmer
-# from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize 
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.model_selection import train_test_split
@@ -152,7 +148,6 @@ class DataPipeline(BasicMethods):
         patches = [DataPipeline.reformat_patch_number(str(x)) for x in patches]
 
         url = 'http://ddragon.leagueoflegends.com/cdn/' + patches[-1] + '/data/en_US/champion.json'
-        # pdb.set_trace()
         champions_list = requests.get(url).json()
         champions_list = list(champions_list['data'].keys())
 
@@ -168,7 +163,6 @@ class DataPipeline(BasicMethods):
 
                 try:
                     data = requests.get(url2).json()
-                    # pdb.set_trace()
                     data = data['data'][champion]
                     champion = DataPipeline.extract_champions_data(data, champion, patch)
                     champion_output = pd.concat([champion_output, champion])
@@ -201,7 +195,7 @@ class DataPipeline(BasicMethods):
                                'assists', 'damagetochampions', 'wardsplaced', 'wardskilled', 'totalgold',
                                'total_cs','monsterkills', 'elementaldrakes']]
 
-        player_df = player_df.sort_values(['player', 'date'], ascending = True)
+        player_df = player_df.sort_values(['player', 'date'], ascending=True)
         player_df = player_df.reset_index(drop=True)  # need to drop index in new pandas version for groupby mean
 
         # Values fields
@@ -209,19 +203,21 @@ class DataPipeline(BasicMethods):
                         'totalgold', 'total_cs','monsterkills', 'elementaldrakes']
 
         player_df2 = player_df[value_fields]
-        player_df2= player_df2.groupby(['player']).rolling(window).mean().shift(-window+1).reset_index().fillna(method = 'ffill')
-        player_df2 = player_df2.drop('level_1', axis = 1)
+        player_df2 = player_df2.groupby(['player']).rolling(window).mean().shift(-window+1).reset_index()
+        player_df2 = player_df2.fillna(method='ffill')
+        player_df2 = player_df2.drop('level_1', axis=1)
 
         # Recombine
         player_df = player_df[['date', 'gameid', 'position', 'side', 'champion', 'patch']]
         player_df = pd.concat([player_df, player_df2], axis=1)
-        player_df['patch'] = player_df['patch'].apply(lambda x : reformat_patch_number(str(x)))
+        player_df['patch'] = player_df['patch'].apply(lambda x: DataPipeline.reformat_patch_number(str(x)))
         self.player_profiles = player_df
 
     def create_team_profiles(self, window):
         # We will use a moving average based on the window.
-        # Treat this as time dependent,
-        team_df = self.matches_df[matches_df['position'] == 'team']
+        # Treat this as time dependent
+        matches_df = self.matches_df
+        team_df = matches_df[matches_df['position'] == 'team']
         team_df = team_df[['date', 'gameid', 'side','team','gamelength','elementaldrakes']]
         team_df = team_df.sort_values(['team', 'date'], ascending=True)
         team_df = team_df.reset_index(drop=True)  # need to drop index in new pandas version for groupby mean
@@ -250,12 +246,9 @@ class DataPipeline(BasicMethods):
         # Split into blue and red
         player_profiles = self.player_profiles
         champion_output = self.champion_output
-        player_profiles = player_profiles.set_index(['champion','patch'])
-        champion_output = champion_output.set_index(['champion','patch'])
 
         player_profiles = pd.merge(player_profiles, champion_output, how='left',
-                                   left_index=True, right_index=True)
-        player_profiles = player_profiles.reset_index()
+                                   left_on=['champion', 'patch'], right_on=['champion', 'patch'])
         player_profiles = player_profiles.drop(['champion', 'patch', 'player'], axis=1)
 
         blue = player_profiles[player_profiles['side'] == 'Blue']
@@ -319,7 +312,7 @@ class DataPipeline(BasicMethods):
         h_t_h_complete = pd.merge(h_t_h_players, h_t_h_teams, how='left',
                                   left_index=True, right_index=True)
  
-        target = self.match_data[['gameid', 'side', 'result']]
+        target = self.matches_df[['gameid', 'side', 'result']]
         target = target[(target['side'] == 'Blue')].drop('side', axis=1).drop_duplicates()
         target = target.set_index('gameid')
         final = pd.merge(h_t_h_complete, target, how='left', left_index=True, right_index=True)
@@ -332,8 +325,6 @@ if __name__ == "__main__":
     # Change current working directory
     # print(Path(__file__).resolve().parent)
 
-    pdb.set_trace()
-
     # if main, parameters
     DATA_DIR = '../data/'
     MODEL_DIR = '../models/'
@@ -343,14 +334,14 @@ if __name__ == "__main__":
     XTEST_FILE = 'x_test.pkl'
     YTEST_FILE = 'y_test.pkl'
     FULL_FILE = 'full_output.pkl'
-    PATCH_END = 10.1
+    PATCH_END = 10.1  # Up to which patch to use for modeling
     WINDOW = 5
     URL = 'http://ddragon.leagueoflegends.com/cdn/{}/data/en_US/champion/{}.json'
 
     # cwd = os.getcwd() #Check working directory if needed
 
     match_dataset = pd.read_csv(DATA_DIR + MATCH_FILE)
-    match_dataset = match_dataset[match_dataset['patch'].isin([10.02])]
+    # match_dataset = match_dataset[match_dataset['patch'].isin([10.02])]  # For testing purposes
     match_dataset = match_dataset.rename(columns={'total cs': 'total_cs'})
 
     # ----Read competitive history data set for list of patches ----#
@@ -358,15 +349,21 @@ if __name__ == "__main__":
     data_extract_pipeline = DataPipeline(matches_df=match_dataset)  # initialize with the competitive matches
 
     data_extract_pipeline.data_pull()
+    print('Data pull complete')
     data_extract_pipeline.create_player_profiles(window=WINDOW)
+    print('Create player profiles complete')
     data_extract_pipeline.create_team_profiles(window=WINDOW)
+    print('Create team profiles complete')
     data_extract_pipeline.head_to_head_players()
+    print('Create player head-to-head complete')
     data_extract_pipeline.head_to_head_teams()
+    print('Create team head-to-head complete')
     data_extract_pipeline.create_output()
+    print('Create output complete')
 
     full_output = getattr(data_extract_pipeline, 'final')
-    match_index = match_dataset[['game_id', 'patch', 'date']]
-    full_output = pd.merge(full_output, match_index, how='left', left_on=['game_id'],
+    match_index = match_dataset[['gameid', 'patch', 'date']]
+    full_output = pd.merge(full_output, match_index, how='left', left_on=['gameid'],
                            right_on=['gameid'])
 
     filtered_output = full_output[full_output['patch'] <= PATCH_END]
@@ -375,6 +372,11 @@ if __name__ == "__main__":
     y = filtered_output['result']
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=0)
+
+    # Count size
+    print('train # of instances:', len(x_train))
+    print('test # of instances:', len(x_test))
+    print('full dataset # of instances:', len(full_output))
 
     # Save output
     data_extract_pipeline.save_pickle(x_train, DATA_DIR + XTRAIN_FILE)

@@ -9,6 +9,10 @@ Description: Ingest training data and fit logistic regression, simple classifica
 Author:      Horace Fung, July 2020
 """
 
+import sys
+
+sys.path.append('/Users/horacefung/Documents/GitHub/New_Projects/LeagueOfLegends/module/')
+
 #import packages
 import pandas as pd
 import numpy as np
