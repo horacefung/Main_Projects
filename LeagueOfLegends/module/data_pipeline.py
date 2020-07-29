@@ -335,7 +335,7 @@ if __name__ == "__main__":
     YTEST_FILE = 'y_test.pkl'
     FULL_FILE = 'full_output.pkl'
     PATCH_END = 10.1  # Up to which patch to use for modeling
-    WINDOW = 5
+    WINDOW = 3
     URL = 'http://ddragon.leagueoflegends.com/cdn/{}/data/en_US/champion/{}.json'
 
     # cwd = os.getcwd() #Check working directory if needed
@@ -362,7 +362,7 @@ if __name__ == "__main__":
     print('Create output complete')
 
     full_output = getattr(data_extract_pipeline, 'final')
-    match_index = match_dataset[['gameid', 'patch', 'date']]
+    match_index = match_dataset[['gameid', 'patch', 'date']].drop_duplicates()
     full_output = pd.merge(full_output, match_index, how='left', left_on=['gameid'],
                            right_on=['gameid'])
 
