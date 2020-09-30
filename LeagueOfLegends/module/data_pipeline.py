@@ -335,7 +335,8 @@ if __name__ == "__main__":
     YTEST_FILE = 'y_test.pkl'
     FULL_FILE = 'full_output.pkl'
     PATCH_END = 10.1  # Up to which patch to use for modeling
-    WINDOW = 3
+    USE_ALL = True  # Use all patches
+    WINDOW = 6
     URL = 'http://ddragon.leagueoflegends.com/cdn/{}/data/en_US/champion/{}.json'
 
     # cwd = os.getcwd() #Check working directory if needed
@@ -345,7 +346,6 @@ if __name__ == "__main__":
     match_dataset = match_dataset.rename(columns={'total cs': 'total_cs'})
 
     # ----Read competitive history data set for list of patches ----#
-
     data_extract_pipeline = DataPipeline(matches_df=match_dataset)  # initialize with the competitive matches
 
     data_extract_pipeline.data_pull()
@@ -366,8 +366,12 @@ if __name__ == "__main__":
     full_output = pd.merge(full_output, match_index, how='left', left_on=['gameid'],
                            right_on=['gameid'])
 
-    filtered_output = full_output[full_output['patch'] <= PATCH_END]
+    if USE_ALL is True:
+        PATCH_END = max(full_output['patch'])
+    else:
+        PATCH_END = PATCH_END
 
+    filtered_output = full_output[full_output['patch'] <= PATCH_END]
     x = filtered_output[filtered_output.columns[~filtered_output.columns.isin(['result'])]]
     y = filtered_output['result']
 
@@ -384,11 +388,5 @@ if __name__ == "__main__":
     data_extract_pipeline.save_pickle(x_test, DATA_DIR + XTEST_FILE)
     data_extract_pipeline.save_pickle(y_test, DATA_DIR + YTEST_FILE)
     data_extract_pipeline.save_pickle(full_output, DATA_DIR + FULL_FILE)
-
-
-
-
-
-
 
 

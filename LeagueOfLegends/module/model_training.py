@@ -1,7 +1,7 @@
 # ---Model Training Class----#
 """
 Title:       Transformers to perform dimensionality reduction and transformations (e.g log-transforms)
-             Perform grid-search to tune top models. 
+             Perform grid-search to tune top models.
 
 Description: Ingest training data and fit logistic regression, simple classification tree,
             random forest and gradient boosting model.
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     ])
 
     # --- Model Pipelines ----#
-    print('Building Model Pipes')
+    print('Building Model Pipelines')
     log_full_pipeline = Pipeline(steps=[
 
         ('feature_pipeline', feature_pipeline),
@@ -196,6 +196,8 @@ if __name__ == "__main__":
     print('Grid Search CART')
     best_cart_model = GridSearchCV(cart_full_pipeline, cart_param_grid, cv=5, scoring='roc_auc')
     best_cart_model.fit(x_train, y_train)
+    # best_cart_model.best_estimator_.named_steps['cart'].feature_importances_
+    # pdb.set_trace()
 
     print('Grid Search Random Forest')
     best_rf_model = GridSearchCV(rf_full_pipeline, rf_param_grid, cv=5, scoring='roc_auc')
@@ -227,8 +229,3 @@ if __name__ == "__main__":
     BasicMethods.save_model(best_cart_model, MODEL_DIR + 'best_cart_model.pkl')
     BasicMethods.save_model(best_rf_model, MODEL_DIR + 'best_rf_model.pkl')
     BasicMethods.save_model(best_gbm_model, MODEL_DIR + 'best_gbm_model.pkl')
-
-
-
-
-
