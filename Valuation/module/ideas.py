@@ -58,6 +58,10 @@ def rf_country_adj(method, sovereign_bond_orig, sovereign_bond_base, base_bond, 
 
 # --- Equity Risk Premium --- (Some Corporate RP + some country RP) #
 def implied_erp(irr, starting_market_price, dividend_buyback_pct, dividend_buyback_growth, stable_growth, period):
+
+	'''The implied ERP calculation based on current market cap and expected future dividends + buybacks.
+	Key note is that implied ERP already includes country ERP of that nation. Only need to add country
+	risk premium to other smaller parts of the business that is not reflected by the market chosen here.'''
     
     discount_sum = 0
     starting_cf = starting_market_price * dividend_buyback_pct
@@ -151,22 +155,70 @@ def weighted_crp(df):
 	return df['weighted_crp'].sum()
 
 
+# ---- Beta Calculation / Manipulations ------ #
+# This concludes cost of equity calculations. 
+# We have Rf, CRP, Market Risk Premium and Beta.
+
+def unlever_beta(levered_beta, fc_vc_ratio):
+
+	'''Unlever beta calculation, can be used to unlever pure business beta with
+	business average fc_vc ratio to get the unlever beta.'''
+
+	unlever_b = levered_beta * (1 + fc_vc_ratio)
+
+	return unlever_b
+
+def lever_beta(unlevered_beta, debt_to_equity_ratio, tax_rate, debt_beta):
+
+	'''Lever beta calculation, can be use to take unlevered beta and lever
+	up to firm specific financial leverage.'''
+
+	levered_b = unlevered_beta * (1 + debt_to_equity_ratio * (1 - tax_rate))
+	levered_b = levered_b - (debt_beta * debt_to_equity_ratio * (1 - tax_rate))
+
+	return levered_b
 
 
+# No specific cost of debt calculations, cost of debt is fairly straightforward
+
+# ---- Cost of Capital ---- #
+def wacc_calc(cost_of_equity, cost_of_debt, equity, debt, tax_urate, real = False,
+	inflation_sovereign = None, debt_component = None):
+
+	equity_component = (equity / (equity + debt)) * cost_of_equity
+	debt_component = (debt / (equity + debt)) * cost_of_debt * (1 - tax_rate)
+	wacc = equity_component + debt_component
+
+	if real == True:
+		adjustment = (1 + inflation_sovereign) / (1 + inflation_base)
+		wacc = (1 + wacc) * adjustment
+
+	return wacc
+
+# This is to make sure our E, D ratios account for all equity and debt
+def hybrid_securities(principal, bond_yield, maturity, interest_rate, market_value):
+
+	''' For hybrid securities like convertible bonds, we should
+	break them down to debt and equity portion. Debt will be the defined
+	value based on maturity, yield and principal. Equity will be the
+	difference between the calculated debt and market value of these
+	securities.'''
+
+	discounted_sum = 0
+
+    for i in range(0, maturity): 
+        discounted_sum += (principal * bond_yield) / ((1 + interest_rate) ** (i))
+
+    discounted_principal = principal / (1 + interest_rate) ** maturity
+
+    debt_portion = discounted_sum + discounted_principal
+    equity_portion = market_value - debt_portion
+    output = {'debt_portion' : debt_portion, 'equity_portion' : equity_portion}
+
+    return output
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+# ---- Estimating Cash Flows ----- #
 
 
 
