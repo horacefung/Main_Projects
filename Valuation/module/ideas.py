@@ -180,7 +180,6 @@ def lever_beta(unlevered_beta, debt_to_equity_ratio, tax_rate, debt_beta):
 
 
 # No specific cost of debt calculations, cost of debt is fairly straightforward
-
 # ---- Cost of Capital ---- #
 def wacc_calc(cost_of_equity, cost_of_debt, equity, debt, tax_urate, real = False,
 	inflation_sovereign = None, debt_component = None):
