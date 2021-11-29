@@ -25,15 +25,19 @@ Author:      Horace Fung, Nov 2021
 """
 
 # Standard imports
+from os import stat
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 import scipy
 
+# Project/helper imports
+import helper
+
 class DiscountRate():
 
-    def __init__(self, kwargs):
+    def __init__(self):
         # Equity Risk Premium inputs
         #assert 
 
@@ -47,9 +51,35 @@ class DiscountRate():
     # ---------------------------------- # 
     # 1) Option to choose COE or COC/WAAC workflow
     def cost_of_capital(self):
+
+        # Compute COE and COD
         cost_of_equity = self.cost_of_equity()
-        cost_of_debt = None
-        return
+        default_spread = self.default_spread(self.main_sovereign_bond - self.base_bond)
+        cost_of_debt = self.risk_free_rate + default_spread + self.corporate_spread
+
+        self.cost_of_equity = cost_of_equity
+        self.default_spread = default_spread
+        self.cost_of_debt = cost_of_debt
+
+        # Compute market value of debt
+        market_debt = self.debt_market_value(self.debt_dict, cost_of_debt)
+
+        # Compute market value of convertibles (and preferred shares)
+        conv_debt, conv_equity = self.convertibles(self.conv_dict, cost_of_debt)
+        if self.pref_dict is not None:
+            pref_debt, pref_equity = self.convertibles(self.pref_dict, self.pref_div)
+        else:
+            pref_debt, pref_equity = 0
+
+        total_debt = market_debt + conv_debt + pref_debt
+        total_equity = self.equity + conv_equity + pref_equity
+        debt_weight = total_debt / (total_debt + total_equity)
+        equity_weight = 1 - debt_weight
+
+        # Compute WACC
+        self.wacc = (debt_weight * cost_of_debt * (1 - self.tax_rate)) + (equity_weight * cost_of_equity)
+
+        return self.wacc
     
     def cost_of_equity(self):
         '''Pipeline to compute cost of equity. Steps are:
@@ -59,7 +89,6 @@ class DiscountRate():
         4) Compute risk free rate (TODO: add country level adjustment, should be minior/negligible)
         5) Compute cost of equity as: Rf + B(ERP) + SUM(Lambda_i * CRP_i)
         '''
-
         # Compute the risk premium as the IRR required to set S&P500 price = Dividend buyback model price
         # (1468.36, 0.0402, 0.05, 0.0402, 5)
         input_args = (self.index_cap, self.dividend_buyback_pct, self.dividend_growth, 
@@ -69,17 +98,10 @@ class DiscountRate():
                                         x0=0.05,  # the initial guess
                                         args=input_args)
 
-        # Compute country risk premium
-        weighted_crp = self.weighted_crp()
-
-        # Compute beta
-        levered_beta = self.beta()
-
-        # Compute rf
-        risk_free_rate = self.risk_free_rate()
-
-        # COE
-        self.cost_of_equity = risk_free_rate + levered_beta * equity_risk_premium + weighted_crp
+        weighted_crp = self.weighted_crp()   # Compute country risk premium
+        levered_beta = self.beta()  # Compute beta
+        risk_free_rate = self.risk_free_rate()  # Compute rf
+        self.cost_of_equity = risk_free_rate + levered_beta * equity_risk_premium + weighted_crp  # COE
 
         return self.cost_of_equity
 
@@ -146,11 +168,11 @@ class DiscountRate():
         # Compute weights
         crp_list = []
         for i in range(len(self.countries_list)):
+            default_spread = self.default_spread(self.sovereign_bond[i] - self.base_bond)
             crp = self.country_risk_premium(sovereign_rating=self.soverign_rating[i],
-                                        sovereign_bond=self.sovereign_bond[i],
-                                        base_bond=self.base_bond,
                                         sovereign_equity_vol=self.sovereign_equity_vol[i],
-                                        sovereign_bond_vol=self.sovereign_bond_vol[i]
+                                        sovereign_bond_vol=self.sovereign_bond_vol[i],
+                                        default_spread=default_spread
                                         )
             crp_list[i] = crp
         
@@ -176,12 +198,16 @@ class DiscountRate():
         if kwargs['sovereign_rating'] == 'AAA':
             return 0.0
         elif kwargs['sovereign_rating'] != None:
-            default_spread = kwargs['sovereign_bond'] - kwargs['base_bond']
-            return default_spread * (kwargs['sovereign_equity_vol'] / kwargs['sovereign_bond_vol'])
+            return kwargs['default_spread'] * (kwargs['sovereign_equity_vol'] / kwargs['sovereign_bond_vol'])
         #elif kwargs['prs_risk_estimate'] != None:
         #    return kwargs['prs_risk_estimate']
         else:
             return print('Missing input')
+
+    @staticmethod
+    def default_spread(sovereign_bond, base_bond):
+        ds = sovereign_bond - base_bond
+        return ds
     
     @staticmethod
     def lambda_regression(returns_df, countries_list):
@@ -265,12 +291,63 @@ class DiscountRate():
 
         return self.beta
 
-
     # --- Risk-free Rate Section (Let's assume no global variation for now)
     def risk_free_rate(self):
         return self.risk_free_rate
 
-    
+    # --- Estimate market value of debt
+    @staticmethod
+    def debt_market_value(debt_dict, cost_of_debt):
+        ''' Unlike market value of equity, the market value of debt is
+        harder to determine. We can take the book value=initial principal, 
+        interest expense = coupons, cost of debt and average maturity to 
+        back out what the market is pricing the company's debt as.
+
+        Keyword Arugments
+        debt_dict -- Dictionary that contains company's debt info
+        cost_of_debt -- The of market required yield for company's debt
+
+        Dictionary Arguments
+        book_debt -- The company's debt on balance sheet
+        interest_expense -- The company's interest expense on income statement
+        avg_maturity -- The average maturity of company's debt
+        '''
+        # annuity formula
+        market_debt = helper.annuity_principal_pv(debt_dict['interest_expense'], 
+                                                cost_of_debt, 
+                                                debt_dict['avg_maturity'], 
+                                                debt_dict['book_debt'])
+
+        return market_debt
+
+    @staticmethod
+    def convertibles(conv_dict, cost_of_debt):
+        '''Convertibles include stuff like convertible bonds or preferred stock.
+        It will have some face value on the books & a stated interest rate that
+        investors get-- that is the debt portion. However, investors have the option
+        to convert the bond into equity. The remaining market value investors are
+        trading at is the market value of equity portion/option to convert.
+
+        Keyword Arugments
+        conv_dict -- Dictionary that contains company's convertible info
+
+        Dictionary Arguments
+        book_value -- The company's convertibles on balance sheet
+        market_value -- The market cap of convertibles trading on market
+        interest -- The dollar interest paid on the convertibles
+        maturity -- The maturity of company's convertibles
+        '''
+
+        debt = helper.annuity_principal_pv(conv_dict['interest'],
+                                        cost_of_debt,
+                                        conv_dict['maturity'],
+                                        conv_dict['book_value'])
+
+        equity = conv_dict['market_value'] - debt
+        assert equity >= 0, 'Negative equity on convertibles'
+
+        return debt, equity
+
 if __name__ == '__main__':
     test = DiscountRate()
     test.cost_of_debt()
