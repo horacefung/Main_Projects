@@ -111,17 +111,19 @@ class FreeCashFlows():
         amortizable_life -- The life (2-10 years) of the intangible R&D asset
         '''
 
-        assert len(rd_dict['rd_expense']) == rd_dict['amortizable_life'], 'Different R&D expenses than amortiziable life'
-
         # Create amortization schedule
+        assert len(rd_dict['rd_expense']) == rd_dict['amortizable_life'], 'Different R&D expenses than amortiziable life'
         increments = 1/rd_dict['amortizable_life']
         schedule = list(range(0, rd_dict['amortizable_life'] + 1))
         schedule = [1 - (increments * i) for i in schedule]
 
-        # 
+        # Compute unamortized amounts (what goes into the research asset)
+        unamortized = [i * j for i,j in zip(schedule, rd_dict['rd_expense'])]
+        amortized = [j - k for j,k in zip(rd_dict['rd_expense'], unamortized)]
+        adj_rd_asset = np.sum(unamortized)
+        adj_amortization = -np.sum(amortized)
 
+        return adj_rd_asset, adj_amortization
 
-        return None
-
-
+    
     
