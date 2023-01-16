@@ -20,10 +20,9 @@ class CashBalance:
         self.cash_balance_table = secrets['cash_balance_table']
 
         #Hard code which accounts and users are allowed, prevents typos
-        self.allowed_owners = ['horace', 'mom', 'dad', 'carmen', 'serena']
-        self.allowed_accounts = ['hsbc_us_checkings', 'hsbc_us_savings', 'td_us_checking',
-                                'hsbc_hk_checkings', 'hsbc_hk_savings', 'fidelity_investments']
-        self.allowed_banks = ['hsbc_us', 'hsbc_hk', 'td', 'fidelity']
+        self.allowed_owners = secrets['allowed_owners']
+        self.allowed_accounts = secrets['allowed_accounts']
+        self.allowed_banks = secrets['allowed_banks']
 
         # Save the unique key for convenience 
         self.unique_key = ['as_of_date', 'account_owner', 'account_name', 'currency']
