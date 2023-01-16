@@ -1,1 +1,2 @@
 gspread==5.7.2.
+pip install --upgrade google-cloud-bigquery

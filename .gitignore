@@ -1,2 +1,4 @@
 
-*.txt
+*.csv
+__pycache__
+/portfolio_tool/components/keys.py
