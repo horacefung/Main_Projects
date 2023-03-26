@@ -66,22 +66,11 @@ class CashBalance:
         cash_df['ingestion_timestamp'] = timestamp
 
         # Currency conversion, everything to USD
-        currencies = cash_df['currency'].unique().tolist()
-        fx_list = []
-        for currency in currencies:
-            fx_dates = cash_df[cash_df['currency']==currency]['as_of_date'].unique().tolist()
-            if currency == 'usd':
-                continue
-            else:
-                fx = alpha_vantage_api.fx_rates(currency, 'USD', dates=fx_dates)
-                fx = pd.DataFrame({'as_of_date':fx.keys(), 'fx_rate':fx.values()})
-                fx['currency'] = currency
-            fx_list.append(fx)
-
-        fx_df = pd.concat(fx_list, axis=0)
+        fx_df = alpha_vantage_api.get_currency_df(cash_df)
         cash_df = pd.merge(cash_df, fx_df, how='left', on=['currency', 'as_of_date'])
         cash_df.loc[cash_df['currency']=='usd', 'fx_rate'] = 1
         cash_df['amount_usd'] = cash_df['amount'] * cash_df['fx_rate']
+
         cols = list(cash_df.columns)
         cols.remove('as_of_date')
         cols.remove('ingestion_timestamp')
@@ -103,7 +92,7 @@ class CashBalance:
     
     def current_entry(self):
         ''' Fetch user inputs from current cash tab.'''
-        curr_cash = gcp_api.sheet_to_df(self.workbook, "Current Cash")
+        curr_cash = gcp_api.sheet_to_df(self.workbook, "Current Cash", col_range="A:F")
         curr_cash = self.prep_data(curr_cash)
 
         # Check there is no duplicates
@@ -129,6 +118,5 @@ class CashBalance:
 
 if __name__ == '__main__':
     cash_balance = CashBalance(secrets)
-    #
     #cash_balance.initiate_history()
-    #cash_balance.current_entry()
+    cash_balance.current_entry()
