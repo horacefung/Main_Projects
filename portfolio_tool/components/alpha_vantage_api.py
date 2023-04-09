@@ -100,21 +100,19 @@ def get_currency_df(input_df):
     fx_rate].
     '''
     df = input_df.copy()
-    assert ['currency', 'as_of_date'] in df.columns, 'missing column for get_currency()'
+    assert 'currency' in df.columns, 'missing currency column for get_currency()'
+    assert 'as_of_date' in df.columns, 'missing as_of_date column for get_currency()'
 
     # Currency conversion, everything to USD
     currencies = df['currency'].unique().tolist()
     fx_list = []
     for currency in currencies:
         fx_dates = df[df['currency']==currency]['as_of_date'].unique().tolist()
-        if currency == 'usd':
-            continue
-        else:
-            fx = fx_rates(currency, 'USD', dates=fx_dates)
-            fx = pd.DataFrame({'as_of_date':fx.keys(), 'fx_rate':fx.values()})
-            fx['currency'] = currency
+        fx = fx_rates(currency, 'USD', dates=fx_dates)
+        fx = pd.DataFrame({'as_of_date':fx.keys(), 'fx_rate':fx.values()})
+        fx['currency'] = currency
         fx_list.append(fx)
-
+    
     fx_df = pd.concat(fx_list, axis=0)
 
     return fx_df
@@ -130,7 +128,7 @@ def get_ticker_price_df(input_df):
         price = security_date_price(ticker, dates=ticker_dates)
         price = pd.DataFrame({'as_of_date':price.keys(), 'live_price':price.values()})
         price['ticker'] = ticker
-    price_list.append([price])
+        price_list.append(price)
 
     price_df = pd.concat(price_list, axis=0)
 
@@ -139,5 +137,5 @@ def get_ticker_price_df(input_df):
 
 if __name__ == '__main__':
     #fx_rates('HKD', 'USD', dates=['2021-12-01', '2019-12-30'])
-    security_date_price('ESCA', dates=['2023-01-15', '2022-01-15'])
+    security_date_price('BRK-B', dates=['2023-01-15', '2022-01-15'])
     

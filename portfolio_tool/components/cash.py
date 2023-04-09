@@ -118,5 +118,5 @@ class CashBalance:
 
 if __name__ == '__main__':
     cash_balance = CashBalance(secrets)
-    #cash_balance.initiate_history()
+    cash_balance.initiate_history()
     cash_balance.current_entry()

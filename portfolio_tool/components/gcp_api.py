@@ -48,7 +48,7 @@ def df_to_bq(df, dataset, table, if_exists='replace'):
     '''
     pandas_gbq.to_gbq(df, f'{dataset}.{table}', project_id=PROJECT_ID, 
                     if_exists=if_exists, credentials=CREDENTIALS)
-    return print("Uploaded to BQ table {dataset}.{table}")
+    return print(f"Uploaded to BQ table {dataset}.{table}")
 
 
 if __name__ == '__main__':
