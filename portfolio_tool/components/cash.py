@@ -6,18 +6,21 @@ Cash component, class for handling cash balance.
 import pandas as pd
 import datetime
 from pytz import timezone
+import sys
+sys.path.append('./components')
 
 # Project imports
-import alpha_vantage_api
+from alpha_vantage_api import AlphaVantageAPI
 import gcp_api
 from keys import secrets
 
-class CashBalance:
+class CashBalance(AlphaVantageAPI):
     def __init__(self, secrets):
         self.project_id = secrets['project_id']
         self.workbook = secrets['gsheet_workbook']
         self.dataset = secrets['dataset']
         self.cash_balance_table = secrets['cash_balance_table']
+        self.sleep_tracker = 0
 
         #Hard code which accounts and users are allowed, prevents typos
         self.allowed_owners = secrets['allowed_owners']
@@ -25,10 +28,10 @@ class CashBalance:
         self.allowed_banks = secrets['allowed_banks']
 
         # Save the unique key for convenience 
-        self.unique_key = ['as_of_date', 'account_owner', 'account_name', 'currency']
+        self.cash_key = ['as_of_date', 'account_owner', 'account_name', 'currency']
     
     # --- Prepare functions --- #
-    def prep_data(self, cash_df):
+    def prep_cash(self, cash_df):
         ''' Enforce column types, clean up strings and
         add additional columns
 
@@ -56,7 +59,7 @@ class CashBalance:
         assert set(cash_df['bank']) <= set(self.allowed_banks), "Non-certified bank detected"
 
         # Check duplicates
-        check = cash_df.groupby(self.unique_key).count()
+        check = cash_df.groupby(self.cash_key).count()
         assert len(check) == len(cash_df), 'Non-unique key'
 
         # Timestamp
@@ -66,7 +69,7 @@ class CashBalance:
         cash_df['ingestion_timestamp'] = timestamp
 
         # Currency conversion, everything to USD
-        fx_df = alpha_vantage_api.get_currency_df(cash_df)
+        fx_df = self.get_currency_df(cash_df)
         cash_df = pd.merge(cash_df, fx_df, how='left', on=['currency', 'as_of_date'])
         cash_df.loc[cash_df['currency']=='usd', 'fx_rate'] = 1
         cash_df['amount_usd'] = cash_df['amount'] * cash_df['fx_rate']
@@ -83,23 +86,24 @@ class CashBalance:
     def initiate_history(self):
         '''Keep it simple for now, take the raw gsheet of history'''
         history = gcp_api.sheet_to_df(self.workbook, "Backpopulate Cash", col_range="A:F")
-        history = self.prep_data(history)
+        history = self.prep_cash(history)
         history = history.sort_values(by='as_of_date', ascending=True)
         self.history = history
         gcp_api.df_to_bq(history, dataset=self.dataset, table=self.cash_balance_table)
 
         return print("Initiated history")
     
-    def current_entry(self):
+    def cash_entry(self):
         ''' Fetch user inputs from current cash tab.'''
         curr_cash = gcp_api.sheet_to_df(self.workbook, "Current Cash", col_range="A:F")
-        curr_cash = self.prep_data(curr_cash)
+        curr_cash = self.prep_cash(curr_cash)
 
         # Check there is no duplicates
-        key_str = ', '.join(self.unique_key)
+        check_key = self.cash_key + ['ingestion_timestamp']
+        key_str = ', '.join(check_key)
         check_query = f'''SELECT DISTINCT {key_str} FROM {self.project_id}.{self.dataset}.{self.cash_balance_table}'''
         check_df = gcp_api.bq_to_df(check_query)
-        check_df = pd.merge(check_df, curr_cash[self.unique_key], how='inner', on=self.unique_key)
+        check_df = pd.merge(check_df, curr_cash[check_key], how='inner', on=check_key)
         assert len(check_df) == 0, print(check_df)
         
         # Save current cash balance
@@ -119,4 +123,4 @@ class CashBalance:
 if __name__ == '__main__':
     cash_balance = CashBalance(secrets)
     cash_balance.initiate_history()
-    cash_balance.current_entry()
+    #cash_balance.cash_entry()

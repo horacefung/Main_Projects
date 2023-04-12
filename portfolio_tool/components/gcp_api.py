@@ -3,6 +3,8 @@ Gsheet API Wrapper
 '''
 # Standard imports
 import pandas as pd
+import sys
+sys.path.append('./components')
 
 # GCP imports
 import gspread
