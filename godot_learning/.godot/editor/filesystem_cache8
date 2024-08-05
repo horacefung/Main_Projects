@@ -1,3 +1,8 @@
 ea4bc82a6ad023ab7ee23ee620429895
-::res://::1718581789
-icon.svg::CompressedTexture2D::2765872051849817326::1718581777::1718581792::1::::<><>::
+::res://::1722795300
+icon.svg::CompressedTexture2D::8868142341417072400::1722795275::1722795304::1::::<><>::
+::res://coin_dash/::1722795243
+hud.tscn::PackedScene::1088654529440787056::1722795243::0::1::::<><>::res://hud.gd<>res://assets/Kenney Bold.ttf<>res://Timer.gd
+main.tscn::PackedScene::8454007504256408020::1722795243::0::1::::<><>::res://Main.gd<>res://assets/grass.png<>res://coin.tscn<>res://player.tscn<>res://hud.tscn
+player.tscn::PackedScene::3692658140325893445::1722795243::0::1::::<><>::res://assets/player/hurt/player-hurt-1.png<>res://player.gd<>res://assets/player/hurt/player-hurt-2.png<>res://assets/player/idle/player-idle-1.png<>res://assets/player/idle/player-idle-2.png<>res://assets/player/idle/player-idle-3.png<>res://assets/player/idle/player-idle-4.png<>res://assets/player/run/player-run-1.png<>res://assets/player/run/player-run-2.png<>res://assets/player/run/player-run-3.png<>res://assets/player/run/player-run-4.png<>res://assets/player/run/player-run-5.png<>res://assets/player/run/player-run-6.png<>res://CollisionShape2D.gd
+::res://first_scene/::1722795243
